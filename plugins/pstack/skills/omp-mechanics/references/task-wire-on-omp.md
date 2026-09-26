@@ -82,7 +82,7 @@ session attached and is revivable.
 - `task.maxRuntimeMs` is a hard wall clock per spawn in milliseconds. 0 disables it. A timeout
   aborts the agent terminally.
 - `task.agentIdleTtlMs`, default 420000, is how long an `idle` agent stays in memory before parking
-  to disk. `hub` `op: "send"` revives a parked agent. `Main` is never parked.
+  to disk. `write agent://<id>` messages an agent by id. `Main` is never parked.
 - `task.enableLsp`, default false, decides whether a spawn gets the `lsp` tool at all.
 - `task.eager` is `default`, `preferred`, or `always`, and sets how hard the harness pushes work
   toward subagents. An agent file's `blocking: true` makes its item run inline instead of in the

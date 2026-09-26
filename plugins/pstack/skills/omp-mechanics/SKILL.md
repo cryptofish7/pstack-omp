@@ -32,14 +32,15 @@ the item shape, the per-agent lever table, the isolation lifecycle, and the budg
   kernel tools the parent defined in an `eval` cell with `@tool` or `tool(fn, …)`, gated by
   `eval.tools.enabled`, so it is not a tool grant. The one per-spawn restriction omp enforces is
   `tools` in an agent's frontmatter, which binds to an agent definition and not to a task call, and
-  even there omp keeps `hub` and adds `yield` regardless of what the list says.
+  even there omp adds `yield` regardless of what the list says.
 - **One call, many items.** Every parallel spawn goes in one `task` call with all items in
   `tasks[]`. `context` is required and is rendered into every spawn's system prompt, so the shared
   contract goes there once instead of per item. `task.maxConcurrency` caps how many run at once.
   Eval holds the second fan-out primitive. `workpool()` queues items onto keep-alive workers and
-  `agent()` returns a handle, both under the same cap, and a pool's name is its async job id, so
-  poll it from outside the cell with `hub` `op: "wait"` and `ids: [pool.name]`. There is no
-  `pool.wait()`. Unlike a task item, eval's `agent()` takes `apply` and `merge`.
+  `agent()` returns a handle, both under the same cap. Results auto-deliver to the parent. Block on
+  them only with the `wait` tool, which takes no arguments and returns on the next settled job or
+  peer message. There is no `pool.wait()`. Unlike a task item, eval's `agent()` takes `apply` and
+  `merge`.
 - **`effort` is gated.** The per-spawn `effort` field is `"lo"`, `"med"`, or `"hi"`, it reaches the
   schema only while `task.enableEffort` is true, which is off by default, and `task.maxEffort` caps
   it. Check `omp config list | grep task.enableEffort` before a brief depends on it.
@@ -69,23 +70,21 @@ the item shape, the per-agent lever table, the isolation lifecycle, and the budg
 - **Budgets stop a long worker.** `task.softRequestBudget`, default 200 assistant requests, warns
   on crossing and force-stops the run at 1.5 times the budget. `task.maxRuntimeMs` is a hard
   per-spawn wall clock in milliseconds, 0 disabled. Brief a long worker to yield partial findings.
-- **Reaching a running agent.** `hub` `op: "list"` and `op: "jobs"` are the read-only probes, and
-  they cover this omp process's whole agent tree rather than one project. `op: "list"` returns
-  running and idle peers plus counts, so parked archaeology needs `status: "parked"`. An `idle`
-  agent parks after `task.agentIdleTtlMs`. A direct `op: "send"` revives a parked peer and a
-  broadcast does not. An isolated agent ends parked with no reviver, so only its transcript
-  survives. `op: "wait"` blocks, so never call it inside an agent that still owes its parent a
-  turn. A finished agent's output artifact is at `agent://<id>`, a nested child's at
-  `agent://<parent>/<child>`, one field at `agent://<id>?q=.<field>`, and the transcript at
-  `history://<id>`. Job rows expire about five minutes after settling, and reading a settled one
-  consumes its automatic delivery, so address the agent by id after that.
-- **Proving a claim.** Run the check under `hub` `op: "start"`, wait on it with `op: "wait"` and a
-  `name`, read the output with `op: "logs"`. That wait takes `timeout` in seconds. The message and
-  job wait is the other one and takes `timeoutMs`. Supplying both `ready.log` and `ready.port`
-  requires both to pass. Every pattern field here is a JavaScript regex compiled with `u`, so
-  `(?i)` is rejected and `[Rr]eady` is the spelling. A readiness timeout leaves the process running
-  and reports its state rather than killing it, so read the logs before calling it a fail. Nothing
-  notifies the session when a supervised process exits. Non-zero exit is a fail.
+- **Reaching a running agent.** `read proc://` lists this session's jobs and project services and
+  `read proc://<id>` inspects one without consuming its delivery. Bare `read history://` lists
+  registered agents with status and parent. `write agent://<id>` sends one agent a message, while
+  `agent://all` broadcasts to live peers only. An `idle` agent parks
+  after `task.agentIdleTtlMs`. An isolated agent ends parked with no reviver, so only its transcript
+  survives. `wait` blocks until the next result or message, so never call it inside an agent that
+  still owes its parent a turn. `write proc://<id>/kill` cancels a job or an owned subagent. A
+  finished agent's output artifact is at `agent://<id>`, a nested child's at
+  `agent://<parent>/<child>`, and the transcript at `history://<id>`.
+- **Proving a claim.** Run the check as a named `bash` service: `name` plus `ready` with a `log`
+  regex and/or `port`. Supplying both requires both to pass. Read status and logs with
+  `read proc://<name>`, send stdin with `write proc://<name>`, and stop it with
+  `write proc://<name>/kill`. A readiness timeout leaves the process running and reports its state
+  rather than killing it, so read the logs before calling it a fail. Exit notifications
+  auto-deliver. Non-zero exit is a fail.
 
 ## architect, arena, interrogate, reflect
 
@@ -147,8 +146,8 @@ the `isolated: true` gate, the per-worker output fallback, and the yield-first l
 this skill depends on.
 
 For a long open-ended item stream, eval's `workpool()` beats a fixed `tasks[]` array. It queues
-items onto keep-alive workers, `eval.workpool.freshAgents` opts into a new agent per item, and the
-pool name doubles as the async job id you pass to `hub` `op: "wait"`. A fixed coverage matrix stays
+items onto keep-alive workers, `eval.workpool.freshAgents` opts into a new agent per item, and its
+results auto-deliver, so block on them only with the `wait` tool. A fixed coverage matrix stays
 one `task` call.
 
 ## multi-phase-plan
@@ -168,8 +167,8 @@ The root starts every participant through `skill://pstack-omp`. Track owners ret
 the root to dispatch; ordinary children never spawn children. Concurrency and isolation depend
 on the live schema and runtime, not on a fixed nesting depth.
 
-`hub` messaging reaches this omp process's agent tree and nothing outside it. `send`, `wait`, and
-`inbox` are the sanctioned coordination primitives. `collab.autoStart` and `omp collab link` host a
+Agent messaging (`write agent://<id>`, `agent://all`, and the `wait` tool) reaches this omp
+process's agent tree and nothing outside it. `collab.autoStart` and `omp collab link` host a
 session for a human to watch or drive, which is not an agent-to-agent channel and gives a
 coordinator no way to reach another session's workers.
 

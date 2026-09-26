@@ -170,14 +170,14 @@ The injected reminder is a pointer, not the playbook. It tells the agent to read
   this btrfs box do not carry it, so Cursor cloud agents are a bigger machine here rather than a
   missing capability.
 - **The control CLI's driving surface.** `browser` (CDP, `tab.observe`/`screenshot`/`evaluate`),
-  `computer` (native desktop plus a11y tree), `hub` (`op:start` with `ready:{log,port}` readiness),
+  `computer` (native desktop plus a11y tree), named `bash` services (`name` plus `ready:{log,port}`, inspected through `proc://<name>`),
   `debug` (full DAP, breakpoints, eval, stack). A generated `control-<app>` script only needs
   app-specific semantics, `doctor`, `new-session`, `seed`/auth, `feature-flag`, `wait-settle`.
 - **`swarm` / `arena` / `interrogate`.** One `task` call with a `tasks[]` batch,
   `task.maxConcurrency=100`, `isolated: true` per candidate, `outputSchema` for judged verdicts.
 - **Never-block.** Subagents run `approvalMode: yolo`, and `proofgate`'s `session_stop` veto is the
   enforced backstop.
-- **Sibling coordination.** Same-session `hub` `send`, `wait`, and `inbox` ship in the harness and are the sanctioned primitive when workers must coordinate instead of running independent. Pstack never calls them yet. Cross-session messaging does not exist locally and gets no workaround here. It is tracked upstream and stays open.
+- **Sibling coordination.** Same-session `write agent://<id>`, `agent://all`, and the `wait` tool ship in the harness and are the sanctioned primitive when workers must coordinate instead of running independent. They replaced the older `hub` tool (`send`, `wait`, `inbox`), which current omp no longer ships, so the port names the replacements. Cross-session messaging does not exist locally and gets no workaround here.
 
 ## Still missing in omp
 

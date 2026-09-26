@@ -36,7 +36,7 @@ Then `/poteto-mode on`, or `alt+shift+t`, or `omp -p --poteto '...'` for headles
 ## What differs from upstream
 
 Every Cursor mechanic is substituted for its omp equivalent. Cloud agents become
-`isolated: true` subagents. `/loop` wake becomes a `hub` supervised watcher. Cursor
+`isolated: true` subagents. `/loop` wake becomes a detached named `bash` service. Cursor
 transcripts become `~/.omp/agent/sessions/`. No skill names a vendor model. Name a
 capability, bind it once in `modelRoles`, pick the chat model with `/model`.
 
