@@ -33,20 +33,19 @@ Write one clear paragraph. If you're unsure about the intent, ask the user befor
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` line in `task.agentModelOverrides` in `~/.omp/agent/config.yml`, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults. Give each reviewer a different model family from the other reviewers and from the parent that wrote the code, resolved at run time from what `omp models` reports. A reviewer sharing the writer's family shares the writer's blind spots, which is the one thing this skill exists to defeat. `skill://omp-mechanics` covers the single-family case.
+Launch all reviewers in one `task` call with one item per panel seat in `tasks[]`. Each seat is its own agent, and the operator binds each seat's model to a different model family in `modelRoles`, so the panel's diversity is configuration, not a per-call field. Give each reviewer a different model family from the other reviewers and from the parent that wrote the code where the configured seats allow it. A reviewer sharing the writer's family shares the writer's blind spots, which is the one thing this skill exists to defeat. `skill://omp-mechanics` covers the single-family case.
 
-| Subagent | Default model |
-|----------|---------------|
-| Reviewer A | your strongest judgment model |
-| Reviewer B | your strongest instruction-following model |
-| Reviewer C | your fast code model |
+| Subagent | `agent` |
+|----------|---------|
+| Reviewer A | `pstack-panel-1` |
+| Reviewer B | `pstack-panel-2` |
+| Reviewer C | `pstack-panel-3` |
 
 For each reviewer:
-- `agent`: `task` (omp's general-purpose bundled agent)
-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line. For an `auto` or `inherit-parent` entry, omit `model` so that reviewer runs on the parent model.
+- `agent`: the seat's agent from the table
 - read-only posture. The brief grants only Glob, Grep, and Read, and forbids writes
 
-If the Task tool rejects a configured entry, run that reviewer on the table default of its family and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use Reviewer A's default. If it rejects a table default, check the valid slugs in the Task tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with it, and open a separate PR to update the default table. Do not block the review on the slug issue. Never treat an alias entry as a rejected slug or apply either fallback to it.
+Record the model each reviewer actually ran on from the task result or its transcript, since a retry fallback can move a seat off its configured model. Report it in the verdict rather than assuming the configured one.
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent

@@ -193,6 +193,18 @@ which writes `<repo>/.omp/skills/verify-<app>/` (SKILL.md plus control script pl
 feature map), then `/maintain-verification-skill` on a schedule. Pick a repo with a runnable UI. A
 React or Vite app with a dev server is the easiest first target.
 
+## Per-role model routing
+
+Upstream sets `model` on each Cursor `Task` call from its `pstack-models.mdc` rule. omp's `task` tool
+has no per-call model, so the port routes through nine owned agents under `plugins/pstack/agents/`,
+`pstack-code`, `pstack-judgment`, `pstack-hardest`, `pstack-panel-1..3`, `pstack-cross-judge`,
+`pstack-reflect-divergent`, and `pstack-reflect-tooling`. Each names one `modelRoles` alias plus a
+fallback, for example `model: ["@pstack_code", "@task"]`. The fallback is required. A bare unset alias
+fails the spawn with "No model selected". `omp-port/patches/zzz-role-agents.patch` points how, why,
+interrogate, arena, architect, reflect, swarm, and the code-delegating playbooks at those agents, and
+`/setup-pstack` writes the nine `pstack_*` aliases. The operator can rebind any of them in `/model`'s
+Roles view.
+
 ## Switching the model `poteto-agent` runs on
 
 The published `agents/poteto-agent.md` ships with no `model:` line and inherits the chat model. To

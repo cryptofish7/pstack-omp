@@ -19,14 +19,14 @@ The port preserves its runtime adapters through `omp-port/owned.txt`. Read
 These hold for every `task` spawn any pstack skill asks for. `references/task-wire-on-omp.md` holds
 the item shape, the per-agent lever table, the isolation lifecycle, and the budgets.
 
-- **No `model` field.** The `task` tool takes no per-call model. Four settings records in
-  `~/.omp/agent/config.yml` carry model, service tier, prewalk, and advisor, all keyed by exact
-  agent name, and a record entry beats the agent file's frontmatter. They are
-  `task.agentModelOverrides`, whose value may be a `@role` alias the operator binds in
-  `modelRoles`, `task.agentServiceTierOverrides`, `task.agentPrewalk`, and `task.agentAdvisor`. A
-  role with no entry runs on the parent chat model, which is the correct default. A role that needs
-  its own model needs its own thin agent file plus its own entry, so a four-arm model race is four
-  agent files. `inherit-parent` and `auto` mean "leave this role out of the map".
+- **No `model` field.** The `task` tool takes no per-call model. A pstack skill picks the model by
+  picking one of the nine `pstack-*` role agents in `skill://pstack-omp`. Each agent's frontmatter
+  reads a `modelRoles` alias (`@pstack_code`, `@pstack_panel_1`, …) that the operator binds with
+  `/setup-pstack` or `/model`'s Roles view, and falls back to `@task` or `@default` when the alias
+  is unset. Four settings records keyed by exact agent name still beat the frontmatter:
+  `task.agentModelOverrides`, `task.agentServiceTierOverrides`, `task.agentPrewalk`, and
+  `task.agentAdvisor`. A role that needs a model none of the nine carries needs its own thin agent
+  file, so a four-arm model race is four agent files.
 - **No `readonly` field.** A read-only worker is posture carried in the brief, never a wire field.
   Name the tools the worker may use and forbid writes. The per-item `tools` field exposes only
   kernel tools the parent defined in an `eval` cell with `@tool` or `tool(fn, …)`, gated by
@@ -89,8 +89,8 @@ the item shape, the per-agent lever table, the isolation lifecycle, and the budg
 
 ## architect, arena, interrogate, reflect
 
-These workflows need independent contexts and benefit from different model priors. Resolve roles
-through `skill://pstack-omp`; never require extra agent files or operator configuration changes.
+These workflows need independent contexts and benefit from different model priors. Their seats are
+the `pstack-panel-*`, `pstack-cross-judge`, and `pstack-reflect-*` agents in `skill://pstack-omp`.
 Use configured model diversity when available and record resolved-model/fallback evidence.
 When only one family is available, keep the independent participant count and report weaker
 model diversity. When independent execution itself is unavailable, report the blocked gate.
@@ -98,8 +98,8 @@ model diversity. When independent execution itself is unavailable, report the bl
   **Every task call**, not a sandbox.
 - **reflect** step 3: keep Divergent on a different family from Judgment. The lens earns its name
   from different priors, not a different prompt.
-- **interrogate** step 2: Reviewer A with no override entry runs on the parent chat model, which is
-  the case where the family spread collapses first.
+- **interrogate** step 2: when two panel aliases are unset they both fall back to `@default`, which
+  is the case where the family spread collapses first.
 - A retry can move a slot off the model its entry named, because `retry.fallbackChains` is keyed by
   the same role names and an aliased spawn inherits that role's chain instead of `default`. Record
   the model each arm actually ran on. `task.showResolvedModelBadge` prints it in the task widget.
@@ -202,13 +202,13 @@ omp carries `globs` as skill metadata and does not auto-attach a skill on a file
 
 ## setup-pstack
 
-The file this skill writes is `~/.omp/agent/config.yml`, not a Cursor rule file. The example block
-in step 5 is the role-to-capability table, not the file format. `references/setup-pstack-config.md`
-holds the omp shape, the four capabilities, and the one-agent-file-per-slot rule.
+The file this skill writes is `~/.omp/agent/config.yml`, not a Cursor rule file. It writes nine
+`pstack_*` entries in `modelRoles`, one per role agent. `references/setup-pstack-config.md` holds the
+omp shape.
 
-`omp config get task.agentModelOverrides` prints the current map. `omp models` lists the machine's
-models, and step 1 must group them by family and count the families, because the review roles are
-defined by family difference.
+`omp config get modelRoles` prints the current map. `omp models` lists the machine's models, and
+step 1 must group them by family, because the panel and reflect roles are defined by family
+difference.
 
 A real slug belongs in `modelRoles` and nowhere else, so a provider rename touches one line in the
 operator's config and no skill at all.

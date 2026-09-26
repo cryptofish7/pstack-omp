@@ -4,3 +4,12 @@
 # survives a sync unchanged and an edit to it is a real commit rather than a rewrite rule.
 skills/omp-mechanics
 skills/pstack-omp
+agents/pstack-code.md
+agents/pstack-judgment.md
+agents/pstack-hardest.md
+agents/pstack-panel-1.md
+agents/pstack-panel-2.md
+agents/pstack-panel-3.md
+agents/pstack-cross-judge.md
+agents/pstack-reflect-divergent.md
+agents/pstack-reflect-tooling.md

@@ -1,83 +1,43 @@
 # The omp shape of pstack's model configuration
 
-Amends **setup-pstack** steps 2, 3, 5, and 6. The block in the skill's step 5 is the
-role-to-capability table. This file is the file format.
+Amends **setup-pstack** steps 2, 5, and 6. The table in the skill maps jobs to agents. This file is
+the file format.
 
-Two keys in `~/.omp/agent/config.yml` carry the choices. `task.agentModelOverrides` maps an agent
-name to a capability alias, and omp expands that alias through `modelRoles`. A `modelRoles` value
-may carry an effort suffix, written `<selector>:<effort>`, which is where the step 3 budget answer
-lands. The alias namespace is the operator's, and nothing in pstack reads a specific alias name.
-What is fixed is the four capabilities and the role labels, which are the ones poteto-mode and the
-routed skills use.
+Each of the nine `pstack-*` agents names one alias in its frontmatter, for example
+`model: ["@pstack_code", "@task"]`. omp expands the first entry through `modelRoles` in
+`~/.omp/agent/config.yml`. An unset alias falls through to the second entry, so an unconfigured
+install runs on `@task` for code and `@default` for everything else. A bare unset alias with no
+fallback fails the spawn with "No model selected", which is why every agent carries two entries.
 
-A third key decides which model a slot ends up on after a failure. `retry.fallbackChains` is keyed
-by the same role names, and a spawn reached through a `@role` alias inherits that role's chain
-rather than the `default` chain. Leave it alone unless the operator asks, and tell them a panel
-slot can land off its configured family when its chain fires.
-
-Three more per-agent records sit beside the model map, keyed the same way and all optional for
-pstack. `task.agentServiceTierOverrides` sets a provider service tier,
-`task.agentPrewalk` arms a cheap-model handoff at the first write, and `task.agentAdvisor` pairs a
-spawn with an advisor model. Write none of them unless the operator asks for one.
-
-Overwrite the whole pstack part of both maps so re-runs stay idempotent, and leave omp's own roles
-alone. Adapt the names below rather than copying them.
+A `modelRoles` value is a selector `omp models` printed, optionally with an effort suffix
+`<selector>:<effort>`, which is where the step 3 budget answer lands.
 
 ```yaml
-task:
-  agentModelOverrides:
-    # One entry per role agent, one alias per capability. Delete an entry and that
-    # agent runs on the parent chat model, which is the right default and needs no
-    # configuration. `inherit-parent` and `auto` are always-valid values that state
-    # it out loud. An alias entry in a panel list still counts toward its fan-out.
-    pstack_feature: "@pstack_fast_code"            # feature, refactoring
-    pstack_refactoring: "@pstack_fast_code"
-    pstack_bug_fix: "@pstack_fast_code"            # bug-fix
-    pstack_perf_issue: "@pstack_fast_code"         # perf-issue
-    pstack_hillclimb: "@pstack_fast_code"          # hillclimb
-    pstack_judgment: "@pstack_judgment"            # judgment and prose
-    pstack_hardest: "@pstack_judgment"             # hardest tasks
-    pstack_how_explorer: "@pstack_fast_code"       # how explorer
-    pstack_how_explainer: "@pstack_judgment"       # how explainer
-    pstack_why_investigator: "@pstack_fast_code"   # why investigators
-    pstack_why_synthesizer: "@pstack_judgment"     # why synthesizer
-    pstack_reflect_tooling: "@pstack_instruction"  # reflect tooling
-    pstack_reflect_judgment: "@pstack_judgment"    # reflect judgment, divergent, synthesizer
-    pstack_reflect_divergent: "@pstack_family_2"
-    pstack_reflect_synthesizer: "@pstack_judgment"
-    pstack_swarm_worker: "@pstack_fast_code"       # swarm workers
-    pstack_arena_runner_1: "@pstack_family_1"      # arena runners
-    pstack_arena_runner_2: "@pstack_family_2"
-    pstack_arena_runner_3: "@pstack_family_3"
-    pstack_arena_runner_4: "@pstack_family_4"
-    pstack_arena_judge_1: "@pstack_family_1"       # arena cross-judge pool
-    pstack_arena_judge_2: "@pstack_family_2"
-    pstack_architect_runner_1: "@pstack_family_1"  # architect runners
-    pstack_architect_runner_2: "@pstack_family_2"
-    pstack_architect_runner_3: "@pstack_family_3"
-    pstack_architect_runner_4: "@pstack_family_4"
-    pstack_interrogate_reviewer_1: "@pstack_family_1"  # interrogate reviewers
-    pstack_interrogate_reviewer_2: "@pstack_family_2"
-    pstack_interrogate_reviewer_3: "@pstack_family_3"
-    pstack_interrogate_reviewer_4: "@pstack_family_4"
 modelRoles:
-  # One line per alias. Each value is a selector `omp models` printed on this machine,
-  # taken from the user's step 3 answer. Write no slug you did not detect. Omit an
-  # alias and drop its entries above to run those roles on the parent chat model.
-  #   pstack_judgment     strongest judgment, for vague intent and cross-cutting design
-  #   pstack_instruction  strongest instruction following, for a precisely specified sequence
-  #   pstack_fast_code    fast code, for mechanical edits and bulk collection
-  #   pstack_family_1..4  one strong reviewer per distinct detected family, in family order
+  # One line per pstack role agent. Each value is a selector `omp models` printed on this
+  # machine plus the budget's effort suffix. Delete a line to fall back to @task or @default.
+  pstack_code: <fast code model>:<effort>
+  pstack_judgment: <strongest judgment model>:<effort>
+  pstack_hardest: <strongest reasoning model>:<effort>
+  pstack_panel_1: <reasoning model, family 1>:<effort>
+  pstack_panel_2: <reasoning model, family 2>:<effort>
+  pstack_panel_3: <reasoning model, family 3>:<effort>
+  pstack_cross_judge: <model off the chat model's family>:<effort>
+  pstack_reflect_divergent: <model off pstack_hardest's family>:<effort>
+  pstack_reflect_tooling: <strongest instruction-following model>:<effort>
+retry:
+  fallbackChains:
+    # Optional. Keyed by the alias name. A spawn through @pstack_code retries down this chain
+    # when its model fails or runs out of quota.
+    pstack_code:
+      - <second-choice fast code model>
 ```
 
-Four capabilities cover every role, so four answers configure the whole stack. The panel roles are
-the exception. Each slot is a separate agent name, needs its own thin agent file, and takes its
-family from its own entry. A slot with no entry runs on the parent chat model, and four slots with
-no entries are four runs of the same model.
+`/model`'s Roles view edits the same entries, so the operator can rebind one role without rerunning
+the skill. `task.agentModelOverrides` keyed by a `pstack-*` agent name beats the alias. Setup does
+not write it, and step 2 flags any it finds.
 
-The budget question in step 3 still applies. It picks the effort tier inside each family. With no
-selector at the asked-for tier, take the same family's highest tier at or below the target, and
-mark the role as needing a choice when that family offers none.
+A retry fallback can move a panel seat onto another family. Tell the operator that a seat can land
+off its configured family when its chain fires, and record the model each seat actually ran on.
 
-Step 6 reports which entries were written, that `modelRoles` now carries the model choices, and
-that both apply to new sessions.
+Step 6 reports which entries were written and that they apply to new sessions and new spawns.

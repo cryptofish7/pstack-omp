@@ -10,7 +10,7 @@ Investigate the motivation and intent behind code.
 
 Companion to the `how` skill. `how` answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Each spawn below names a role line in the `pstack-models.mdc` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
+Each spawn below names the pstack role agent that carries its model. The operator binds each agent's model in `modelRoles`, so a spawn never passes a model.
 
 ## Operating Posture
 
@@ -80,8 +80,7 @@ Aim for a complete **coverage map**, not a minimal one. Document the null, don't
 Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
-- `agent`: `task` (omp's general-purpose bundled agent)
-- `model`: the `why investigators` line, default your fast code model
+- `agent`: `pstack-code` (the `why investigators` role; `skill://pstack-omp` maps roles to agents)
 - Full tools per spawn. There is no `readonly` field and no Ask mode on omp's task wire, so nothing strips MCP access, which would otherwise disable MCP-backed investigators entirely. Investigators still shouldn't write anything.
 
 Each investigator gets:
@@ -124,8 +123,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 Spawn one synthesizer subagent:
 
-- `agent`: `task` (omp's general-purpose bundled agent)
-- `model`: the `why synthesizer` line, default your strongest judgment model
+- `agent`: `pstack-judgment` (the `why synthesizer` role)
 - Full tools per spawn. The synthesizer's quality check spot-verifies citations, which can require MCP access. There is no such mode on omp's task wire, so nothing strips MCPs.
 
 The synthesizer gets:

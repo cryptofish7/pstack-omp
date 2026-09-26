@@ -28,21 +28,21 @@ The first line of an omp transcript is a fixed-width `type:title` slot and the s
 
 ### 2. Spawn three reviewers in parallel
 
-One `task` call with three items in `tasks[]`, each `agent`: `task` (omp's general-purpose bundled agent) pinned by its own agent name, full tools per spawn. Run the three lenses on three different model families where `omp models` offers them, and keep Divergent on a different model family from Judgment, since the lens earns its name from different priors and not a different prompt. Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). There is no such field on omp's task wire, so nothing strips MCPs.
+One `task` call with three items in `tasks[]`, each item's `agent` set from the table below, full tools per spawn. Run the three lenses on three different model families where `omp models` offers them, and keep Divergent on a different model family from Judgment, since the lens earns its name from different priors and not a different prompt. Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). There is no such field on omp's task wire, so nothing strips MCPs.
 
-Each reviewer and the synthesizer name a role line in the `pstack-models.mdc` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
+Each lens runs on its own pstack role agent, and the operator binds each agent's model in `modelRoles`. Bind Divergent to a different model family from Judgment.
 
-| Lens | Role line | Default `model` | Prompt template |
-|---|---|---|---|
-| Judgment | `reflect judgment, divergent, synthesizer` | your strongest judgment model | `references/judgment-reviewer.md` |
-| Tooling | `reflect tooling` | your strongest instruction-following model | `references/tooling-reviewer.md` |
-| Divergent | `reflect judgment, divergent, synthesizer` | your strongest judgment model | `references/divergent-reviewer.md` |
+| Lens | `agent` | Prompt template |
+|---|---|---|
+| Judgment | `pstack-hardest` | `references/judgment-reviewer.md` |
+| Tooling | `pstack-reflect-tooling` | `references/tooling-reviewer.md` |
+| Divergent | `pstack-reflect-divergent` | `references/divergent-reviewer.md` |
 
 Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
 
 ### 3. Synthesize
 
-One `Task` call, `agent`: `task` (omp's general-purpose bundled agent), with `model` from the `reflect judgment, divergent, synthesizer` line (default your strongest judgment model), full tools per spawn. The synthesizer's quality check includes spot-verifying citations, which can require MCP access. There is no such field on omp's task wire, so nothing strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `task` call, `agent`: `pstack-hardest`, full tools per spawn. The synthesizer's quality check includes spot-verifying citations, which can require MCP access. There is no such field on omp's task wire, so nothing strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 

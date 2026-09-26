@@ -94,7 +94,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 Batch genuinely independent work when supported. Give each participant a standalone brief and explicit write ownership. The root starts additional participants and independent reviewers; ordinary workers do not start children. Runtime role configuration selects models. Preserve required independent contexts and report unavailable model diversity honestly. Do not change operator configuration merely to satisfy a skill example.
 
-Model selection belongs to the active runtime's role configuration, not the routed skill.
+Model selection belongs to the operator's `modelRoles`, not the routed skill. Every delegated job runs on a pstack role agent: `pstack-code` for code delegates, `pstack-hardest` for the hardest changes (cross-cutting design, gnarly concurrency, subtle algorithms), `pstack-judgment` for judgment and prose, and the panel seats for multi-model review. `skill://pstack-omp` holds the full table, and `/setup-pstack` binds the models.
 
 You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a "done" summary. A second opinion is the same prompt against a different model. Agreement is high-signal.
 

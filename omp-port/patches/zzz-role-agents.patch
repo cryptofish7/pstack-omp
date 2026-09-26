@@ -1,0 +1,372 @@
+diff -r a/skills/architect/SKILL.md b/skills/architect/SKILL.md
+--- a/skills/architect/SKILL.md	2026-09-26 17:41:37.158672114 +0100
++++ b/skills/architect/SKILL.md	2026-09-26 17:41:37.233601609 +0100
+@@ -30,7 +30,7 @@
+ 
+ Run the **arena** skill with the design-sketch task and the Phase A grounding artifacts. Pass `references/runner-prompt.md` as each runner's prompt. Each candidate produces a design package shaped per `references/rationale-template.md`.
+ 
+-Take the runners from the `architect runners` line in the `pstack-models.mdc` rule, in place of the `arena runners` line. If the rule or that line is missing, use one model per distinct family `omp models` reports. Alias and rejected entries follow the runner rules in the **arena** skill's Phase A.
++The runners are the same panel seats the **arena** skill uses, `pstack-panel-1` through `pstack-panel-3`.
+ 
+ Design it twice. Require at least two structurally distinct candidates before synthesis, even when the first looks sufficient. This is the **exhaust-the-design-space** principle skill made concrete. Whole-shape alternatives, not point fixes inside one shape.
+ 
+diff -r a/skills/arena/SKILL.md b/skills/arena/SKILL.md
+--- a/skills/arena/SKILL.md	2026-09-26 17:41:37.164011953 +0100
++++ b/skills/arena/SKILL.md	2026-09-26 17:41:37.237558041 +0100
+@@ -25,12 +25,12 @@
+ 
+ 1. State the artifact each candidate is producing.
+ 2. Derive the rubric. State what success looks like for *this* task, then turn it into 3-6 concrete gradeable criteria. The rubric is the picker's tool in Phase D. Candidates only see the task.
+-3. Pick the runners. Use the `arena runners` line in `task.agentModelOverrides` in `~/.omp/agent/config.yml`. If the rule or that line is missing, default to one each on one model per distinct family `omp models` reports. An `auto` or `inherit-parent` entry in this line or the cross-judge line means the parent model, so omit `model` for it. If the Task tool rejects a configured entry, run that seat on its family's default and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use your strongest judgment model. If it rejects a default, use the closest valid slug of the same family from its error message. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
++3. Pick the runners. The runners are the panel seats `pstack-panel-1`, `pstack-panel-2`, and `pstack-panel-3`, one candidate each, and each seat's model is the operator's `modelRoles` binding, so the runners span different model families without a per-call field. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
+ 4. Assign output paths. Each candidate writes to its own location (a git worktree where possible, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.
+ 
+ ## Phase B: Fan out
+ 
+-Spawn all N subagents in one `task` call with all items in `tasks[]`, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
++Spawn all N subagents in one `task` call with all items in `tasks[]`, each item's `agent` set to its seat, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
+ 
+ Each rationale names the alternatives the candidate considered and what it rejected.
+ 
+@@ -38,7 +38,7 @@
+ 
+ ## Phase C: Cross-judge
+ 
+-After all Phase B candidates complete, choose one model from the `arena cross-judge pool` line in `task.agentModelOverrides` in `~/.omp/agent/config.yml`. If the rule or that line is missing, choose from one model per distinct family `omp models` reports. Prefer a different model family from the parent's. Spawn one judge subagent whose brief grants read tools only. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't spawn the judge while candidates are still writing.
++After all Phase B candidates complete, spawn the judge as `agent`: `pstack-cross-judge`. Its model is the operator's `modelRoles` binding, which should sit on a different model family from the parent's. The judge's brief grants read tools only. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't spawn the judge while candidates are still writing.
+ 
+ ## Phase D: Pick a base
+ 
+diff -r a/skills/how/SKILL.md b/skills/how/SKILL.md
+--- a/skills/how/SKILL.md	2026-09-26 17:41:37.122316151 +0100
++++ b/skills/how/SKILL.md	2026-09-26 17:41:37.206696207 +0100
+@@ -8,7 +8,7 @@
+ 
+ Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
+ 
+-Each spawn below names a role line in the `pstack-models.mdc` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
++Each spawn below names the pstack role agent that carries its model. The operator binds each agent's model in `modelRoles`, so a spawn never passes a model.
+ 
+ ## Step 1. Assess Complexity
+ 
+@@ -23,8 +23,7 @@
+ 
+ Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single message:
+ 
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the `how explorer` line, default your fast code model
++- `agent`: `pstack-code` (the `how explorer` role; `skill://pstack-omp` maps roles to agents)
+ - read-only posture. The brief grants only Glob, Grep, and Read, and forbids writes
+ 
+ Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
+@@ -33,8 +32,7 @@
+ 
+ Spawn one Task subagent that explores and explains in one pass:
+ 
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the `how explainer` line, default your strongest judgment model
++- `agent`: `pstack-judgment` (the `how explainer` role)
+ - read-only posture. The brief grants only Glob, Grep, and Read, and forbids writes
+ 
+ Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.
+@@ -43,8 +41,7 @@
+ 
+ Once all explorers have returned, spawn one Task subagent to synthesize their findings into one explanation:
+ 
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the `how explainer` line, default your strongest judgment model
++- `agent`: `pstack-judgment` (the `how explainer` role)
+ - read-only posture. The brief grants only Glob, Grep, and Read, and forbids writes
+ 
+ Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
+diff -r a/skills/interrogate/SKILL.md b/skills/interrogate/SKILL.md
+--- a/skills/interrogate/SKILL.md	2026-09-26 17:41:37.109475821 +0100
++++ b/skills/interrogate/SKILL.md	2026-09-26 17:41:37.197920349 +0100
+@@ -33,20 +33,19 @@
+ 
+ ## Step 3, Spawn Reviewers
+ 
+-Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` line in `task.agentModelOverrides` in `~/.omp/agent/config.yml`, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults. Give each reviewer a different model family from the other reviewers and from the parent that wrote the code, resolved at run time from what `omp models` reports. A reviewer sharing the writer's family shares the writer's blind spots, which is the one thing this skill exists to defeat. `skill://omp-mechanics` covers the single-family case.
++Launch all reviewers in one `task` call with one item per panel seat in `tasks[]`. Each seat is its own agent, and the operator binds each seat's model to a different model family in `modelRoles`, so the panel's diversity is configuration, not a per-call field. Give each reviewer a different model family from the other reviewers and from the parent that wrote the code where the configured seats allow it. A reviewer sharing the writer's family shares the writer's blind spots, which is the one thing this skill exists to defeat. `skill://omp-mechanics` covers the single-family case.
+ 
+-| Subagent | Default model |
+-|----------|---------------|
+-| Reviewer A | your strongest judgment model |
+-| Reviewer B | your strongest instruction-following model |
+-| Reviewer C | your fast code model |
++| Subagent | `agent` |
++|----------|---------|
++| Reviewer A | `pstack-panel-1` |
++| Reviewer B | `pstack-panel-2` |
++| Reviewer C | `pstack-panel-3` |
+ 
+ For each reviewer:
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line. For an `auto` or `inherit-parent` entry, omit `model` so that reviewer runs on the parent model.
++- `agent`: the seat's agent from the table
+ - read-only posture. The brief grants only Glob, Grep, and Read, and forbids writes
+ 
+-If the Task tool rejects a configured entry, run that reviewer on the table default of its family and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use Reviewer A's default. If it rejects a table default, check the valid slugs in the Task tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with it, and open a separate PR to update the default table. Do not block the review on the slug issue. Never treat an alias entry as a rejected slug or apply either fallback to it.
++Record the model each reviewer actually ran on from the task result or its transcript, since a retry fallback can move a seat off its configured model. Report it in the verdict rather than assuming the configured one.
+ 
+ Read `references/reviewer-prompt.md` and fill in the template with:
+ 1. The stated intent
+diff -r a/skills/poteto-mode/SKILL.md b/skills/poteto-mode/SKILL.md
+--- a/skills/poteto-mode/SKILL.md	2026-09-26 17:41:37.149465843 +0100
++++ b/skills/poteto-mode/SKILL.md	2026-09-26 17:41:37.226014993 +0100
+@@ -94,7 +94,7 @@
+ 
+ Batch genuinely independent work when supported. Give each participant a standalone brief and explicit write ownership. The root starts additional participants and independent reviewers; ordinary workers do not start children. Runtime role configuration selects models. Preserve required independent contexts and report unavailable model diversity honestly. Do not change operator configuration merely to satisfy a skill example.
+ 
+-Model selection belongs to the active runtime's role configuration, not the routed skill.
++Model selection belongs to the operator's `modelRoles`, not the routed skill. Every delegated job runs on a pstack role agent: `pstack-code` for code delegates, `pstack-hardest` for the hardest changes (cross-cutting design, gnarly concurrency, subtle algorithms), `pstack-judgment` for judgment and prose, and the panel seats for multi-model review. `skill://pstack-omp` holds the full table, and `/setup-pstack` binds the models.
+ 
+ You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a "done" summary. A second opinion is the same prompt against a different model. Agreement is high-signal.
+ 
+diff -r a/skills/poteto-mode/playbooks/bug-fix.md b/skills/poteto-mode/playbooks/bug-fix.md
+--- a/skills/poteto-mode/playbooks/bug-fix.md	2026-09-26 17:41:37.131484631 +0100
++++ b/skills/poteto-mode/playbooks/bug-fix.md	2026-09-26 17:41:37.213002081 +0100
+@@ -6,7 +6,7 @@
+ 
+ 1. Reproduce it yourself on the matching surface via the control skill (Non-negotiables), even when a debug or instrumentation protocol says to ask the user to reproduce. Ask the user only with a stated, specific reason the control surface cannot reach the target, and only after driving it as far as it goes. If it won't reproduce directly, synthesize the trigger, tighten conditions, or instrument until it fires.
+ 2. Binary-search the cause. Form the candidate hypotheses, then rule them out until one survives. Seed them with `how` over the affected subsystem and the **why** skill for regression history. Each pass, take the split that cuts the most remaining problem space, get runtime evidence, eliminate. When program state is unclear, add instrumentation or logging and read it as the code runs. Don't guess. Drive a long or stubborn hunt with omp's `/loop`, which re-submits the same prompt after every yield. State the exit condition as a shell command and pass it as `--until '<cmd>'`, which gates each iteration on that command's exit status. Confirm the surviving *mechanism* with runtime evidence before the step-3 architect/interrogate fan-out.
+-3. Plan the fix. If it crosses a function boundary, `architect` first. Delegate implementation to a subagent using your configured bug-fix model (default your fast code model) with a specific scope.
++3. Plan the fix. If it crosses a function boundary, `architect` first. Delegate implementation to a subagent with `agent`: `pstack-code` (`pstack-hardest` for the hardest changes) with a specific scope.
+ 4. Verify on the same surface. The original repro now passes. "Inconclusive" or wrong-surface is not a pass. Flag it. Unit tests show branch behavior, not bug absence.
+ 5. Stage the commits so the failing repro lands before the fix in git history. See the **tdd** skill for the failing-test-first cadence when the bug has a cheap local test path. Skip it when the test would be expensive, integration-heavy, or unclear.
+    This is the canonical **sequence-verifiable-units** principle skill, the failing test first and the fix on top.
+diff -r a/skills/poteto-mode/playbooks/feature.md b/skills/poteto-mode/playbooks/feature.md
+--- a/skills/poteto-mode/playbooks/feature.md	2026-09-26 17:41:37.138758415 +0100
++++ b/skills/poteto-mode/playbooks/feature.md	2026-09-26 17:41:37.217925464 +0100
+@@ -9,7 +9,7 @@
+    - **Independent workstreams.** Disjoint files, services, or layers parallelize. Shared writes serialize.
+    - **Shared mutable state.** Default to splitting the target (the **separate-before-serializing-shared-state** principle skill). Serialize only for real invariants.
+    - **Smallest safe decomposition.** If one worker is best, name why.
+-4. Delegate code-writing to a subagent using your configured feature model (default your fast code model) with a specific scope (file paths, named data shape and its organizing structure per **principle-model-the-domain**, a state machine over scattered booleans, a table/registry over branching, a typed model over repeated shape assumptions, chosen before the delegate writes logic, and success criteria). When the implementation admits multiple valid shapes (error handling, abstraction layer, test structure), delegate via the **arena** skill instead so the runners surface the alternatives and the cross-judge guards the pick. Mandatory: no skip-with-reason escape, and Laziness Protocol does not override it (the gain is review separation, not lines saved). A subagent forbidden to spawn satisfies this by owning the diff directly with the same review separation. No "standing by" reply that waits on a nested agent. Comments per **Comments**. Surgical edits, re-ground against the source for upstream-derived files. Port shared-primitive improvements to all consumers and verify each. Commit liberally.
++4. Delegate code-writing to a subagent with `agent`: `pstack-code` (`pstack-hardest` for the hardest changes) with a specific scope (file paths, named data shape and its organizing structure per **principle-model-the-domain**, a state machine over scattered booleans, a table/registry over branching, a typed model over repeated shape assumptions, chosen before the delegate writes logic, and success criteria). When the implementation admits multiple valid shapes (error handling, abstraction layer, test structure), delegate via the **arena** skill instead so the runners surface the alternatives and the cross-judge guards the pick. Mandatory: no skip-with-reason escape, and Laziness Protocol does not override it (the gain is review separation, not lines saved). A subagent forbidden to spawn satisfies this by owning the diff directly with the same review separation. No "standing by" reply that waits on a nested agent. Comments per **Comments**. Surgical edits, re-ground against the source for upstream-derived files. Port shared-primitive improvements to all consumers and verify each. Commit liberally.
+ 5. Verify on the matching surface. "Inconclusive" or wrong-surface is not a pass. Flag it.
+ 6. Rebase into small, ordered commits. Stack follow-ups.
+    Use the **sequence-verifiable-units** principle skill, building, verifying, and committing each small unit before the next.
+diff -r a/skills/poteto-mode/playbooks/hillclimb.md b/skills/poteto-mode/playbooks/hillclimb.md
+--- a/skills/poteto-mode/playbooks/hillclimb.md	2026-09-26 17:41:37.136501097 +0100
++++ b/skills/poteto-mode/playbooks/hillclimb.md	2026-09-26 17:41:37.216414808 +0100
+@@ -9,7 +9,7 @@
+ 3. Open the decision log via the **show-me-your-work** skill. A `decision.tsv`, one row per attempt: id, hypothesis, change, before, after, delta, tests, verdict (kept or reverted), note. Read it before each attempt. Keep it out of the tree (gitignored).
+ 4. Ground each hypothesis in the architecture model from step 1, so it names a specific mechanism ("defer X off the boot path because it blocks first paint"), not "try memoizing something".
+ 5. Loop, one hypothesis per iteration:
+-   - Hand the change to a subagent using your configured hillclimb model (default your fast code model) with a tight scope. Supervise and review the diff rather than typing it (the **guard-the-context-window** principle skill). When several independent hypotheses are live, fan them to parallel subagents, each in its own worktree (the **separate-before-serializing-shared-state** principle skill).
++   - Hand the change to a subagent with `agent`: `pstack-code` (`pstack-hardest` for the hardest changes) with a tight scope. Supervise and review the diff rather than typing it (the **guard-the-context-window** principle skill). When several independent hypotheses are live, fan them to parallel subagents, each in its own worktree (the **separate-before-serializing-shared-state** principle skill).
+    - Measure before and after with the frozen harness, and run the regression gate.
+    - Accept only when the metric moves past noise and the gate stays green. Otherwise revert the change in full. A tweak that "might help" is not kept.
+    - One commit per accepted fix, staging only the files you changed (`git add <files>`, never `-A`). Log the row either way, kept or reverted.
+diff -r a/skills/poteto-mode/playbooks/perf-issue.md b/skills/poteto-mode/playbooks/perf-issue.md
+--- a/skills/poteto-mode/playbooks/perf-issue.md	2026-09-26 17:41:37.139459869 +0100
++++ b/skills/poteto-mode/playbooks/perf-issue.md	2026-09-26 17:41:37.218492294 +0100
+@@ -13,7 +13,7 @@
+    - **Redundancy.** The wait hangs on one slow instance or attempt. Duplicate the work (replicas, hedged requests, speculative execution) and take the fastest result. The trace has to show the wait dominates and the system has headroom.
+    - **Lazy evaluation.** Cost lands on results that are never used or not needed yet (eager init on the boot path, rendering offscreen items). Defer the work until first use.
+    - **Scheduling.** The work must happen, but not during the interactive moment. Move it to where nobody is waiting: idle callbacks, a background warmup after boot, precompute before the user arrives, cleanup after the frame commits. The win is perceived latency, so measure the interactive path, not total work done.
+-3. Plan the fix from the trace. If it crosses a function boundary, `architect` first. Delegate implementation to a subagent using your configured perf-issue model (default your fast code model). Review the diff. Capture a post-fix trace.
++3. Plan the fix from the trace. If it crosses a function boundary, `architect` first. Delegate implementation to a subagent with `agent`: `pstack-code` (`pstack-hardest` for the hardest changes). Review the diff. Capture a post-fix trace.
+    Apply the **sequence-verifiable-units** principle skill, verifying each attempt before trying the next.
+ 4. Parse and compare the artifacts (JSON to sqlite, diff). "Inconclusive" or wrong-surface is not a pass. Flag it.
+ 5. Cite the measurement in the PR.
+diff -r a/skills/poteto-mode/playbooks/refactoring.md b/skills/poteto-mode/playbooks/refactoring.md
+--- a/skills/poteto-mode/playbooks/refactoring.md	2026-09-26 17:41:37.140110073 +0100
++++ b/skills/poteto-mode/playbooks/refactoring.md	2026-09-26 17:41:37.219029915 +0100
+@@ -8,7 +8,7 @@
+ 2. Name the structure the code is missing per **principle-model-the-domain**. Boring code stays when the shape is already clear and local. The reshape must delete branches or invalid states, not add indirection.
+ 3. Name the target shape. State what the module layout, types, and call graph should be if built today (**principle-foundational-thinking**, **principle-redesign-from-first-principles**). If the target crosses a function boundary, run the **architect** skill for parallel design exploration of the shape before the move.
+ 4. Subtract before you add. Delete dead code, collapse one-caller wrappers, drop redundant validators, and remove orphan references before introducing the new shape (**principle-subtract-before-you-add**). The smallest change that reaches the target shape ships (**principle-laziness-protocol**). A speculative cleanup that "might help" gets reverted.
+-5. Move in small behavior-preserving steps, each keeping the pin green. For API reshapes, migrate every caller and delete the old API in the same wave (**principle-migrate-callers-then-delete-legacy-apis**). No compatibility shims, no parallel old-and-new paths. Spot-check every rename against the actual files. Renames silently miss usages in strings, prose, and back-references. Delegate the mechanical edits to a subagent using your configured refactoring model (default your fast code model) with a specific scope (file paths, the names being moved, the behavior to hold).
++5. Move in small behavior-preserving steps, each keeping the pin green. For API reshapes, migrate every caller and delete the old API in the same wave (**principle-migrate-callers-then-delete-legacy-apis**). No compatibility shims, no parallel old-and-new paths. Spot-check every rename against the actual files. Renames silently miss usages in strings, prose, and back-references. Delegate the mechanical edits to a subagent with `agent`: `pstack-code` (`pstack-hardest` for the hardest changes) with a specific scope (file paths, the names being moved, the behavior to hold).
+ 6. Prove behavior is unchanged on the real artifact, not "it compiles" (**principle-prove-it-works**). For larger reshapes, run an equivalence check: a script that diffs old-vs-new outputs, a recorded baseline replayed against the new code, or a smoke run on the matching surface via the relevant control skill.
+ 7. Confirm the change is worth keeping. The success measure is reduced reader load (**principle-minimize-reader-load**). If the diff does not lower reader load somewhere, revert it.
+ 8. Rebase into small ordered commits. A subtraction commit, then the reshape, then any follow-on cleanup. Shape them with the **sequence-verifiable-units** principle skill, so each behavior-preserving slice stays green before the next. Run **Opening a PR**.
+diff -r a/skills/reflect/SKILL.md b/skills/reflect/SKILL.md
+--- a/skills/reflect/SKILL.md	2026-09-26 17:41:37.126503998 +0100
++++ b/skills/reflect/SKILL.md	2026-09-26 17:41:37.209878727 +0100
+@@ -28,21 +28,21 @@
+ 
+ ### 2. Spawn three reviewers in parallel
+ 
+-One `task` call with three items in `tasks[]`, each `agent`: `task` (omp's general-purpose bundled agent) pinned by its own agent name, full tools per spawn. Run the three lenses on three different model families where `omp models` offers them, and keep Divergent on a different model family from Judgment, since the lens earns its name from different priors and not a different prompt. Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). There is no such field on omp's task wire, so nothing strips MCPs.
++One `task` call with three items in `tasks[]`, each item's `agent` set from the table below, full tools per spawn. Run the three lenses on three different model families where `omp models` offers them, and keep Divergent on a different model family from Judgment, since the lens earns its name from different priors and not a different prompt. Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). There is no such field on omp's task wire, so nothing strips MCPs.
+ 
+-Each reviewer and the synthesizer name a role line in the `pstack-models.mdc` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
++Each lens runs on its own pstack role agent, and the operator binds each agent's model in `modelRoles`. Bind Divergent to a different model family from Judgment.
+ 
+-| Lens | Role line | Default `model` | Prompt template |
+-|---|---|---|---|
+-| Judgment | `reflect judgment, divergent, synthesizer` | your strongest judgment model | `references/judgment-reviewer.md` |
+-| Tooling | `reflect tooling` | your strongest instruction-following model | `references/tooling-reviewer.md` |
+-| Divergent | `reflect judgment, divergent, synthesizer` | your strongest judgment model | `references/divergent-reviewer.md` |
++| Lens | `agent` | Prompt template |
++|---|---|---|
++| Judgment | `pstack-hardest` | `references/judgment-reviewer.md` |
++| Tooling | `pstack-reflect-tooling` | `references/tooling-reviewer.md` |
++| Divergent | `pstack-reflect-divergent` | `references/divergent-reviewer.md` |
+ 
+ Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
+ 
+ ### 3. Synthesize
+ 
+-One `Task` call, `agent`: `task` (omp's general-purpose bundled agent), with `model` from the `reflect judgment, divergent, synthesizer` line (default your strongest judgment model), full tools per spawn. The synthesizer's quality check includes spot-verifying citations, which can require MCP access. There is no such field on omp's task wire, so nothing strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
++One `task` call, `agent`: `pstack-hardest`, full tools per spawn. The synthesizer's quality check includes spot-verifying citations, which can require MCP access. There is no such field on omp's task wire, so nothing strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+ 
+ ### 4. Structural enforcement check
+ 
+diff -r a/skills/setup-pstack/SKILL.md b/skills/setup-pstack/SKILL.md
+--- a/skills/setup-pstack/SKILL.md	2026-09-26 17:41:37.111012561 +0100
++++ b/skills/setup-pstack/SKILL.md	2026-09-26 17:41:37.198848968 +0100
+@@ -1,73 +1,61 @@
+ ---
+ name: setup-pstack
+-description: Configure which models pstack uses per role and at what reasoning budget. Detects your available models and writes an always-applied rule that overrides the skill defaults. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
++description: Configure which models pstack uses per role and at what reasoning budget. Detects your available models and writes the pstack model roles into omp's config. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
+ ---
+ 
+ # Setup pstack
+ 
+-Write `task.agentModelOverrides` in `~/.omp/agent/config.yml`, the keyed override map that sets pstack's model per role agent. The chat model stays the operator's choice, made with `/model`, and pstack never overrides it. `skill://omp-mechanics` holds the file shape.
++pstack routes every delegated job to one of nine role agents, and each agent reads its model from one `modelRoles` alias in `~/.omp/agent/config.yml`. This skill writes those nine aliases. The chat model stays the operator's choice, made with `/model`, and pstack never overrides it. The operator can change any alias later in `/model`'s Roles view without rerunning this skill.
+ 
++| Agent | `modelRoles` alias | Jobs | Capability to bind |
++|---|---|---|---|
++| `pstack-code` | `pstack_code` | feature, refactoring, bug-fix, perf-issue, hillclimb, how explorer, why investigators, swarm workers | your fast code model |
++| `pstack-judgment` | `pstack_judgment` | judgment and prose, how explainer, why synthesizer | your strongest judgment model |
++| `pstack-hardest` | `pstack_hardest` | hardest tasks, reflect judgment, reflect synthesizer | your strongest reasoning model |
++| `pstack-panel-1` | `pstack_panel_1` | interrogate reviewer A, arena and architect runner 1 | a strong reasoning model, family 1 |
++| `pstack-panel-2` | `pstack_panel_2` | interrogate reviewer B, arena and architect runner 2 | a strong reasoning model, family 2 |
++| `pstack-panel-3` | `pstack_panel_3` | interrogate reviewer C, arena and architect runner 3 | a strong reasoning model, family 3 |
++| `pstack-cross-judge` | `pstack_cross_judge` | arena cross-judge | a strong model on a different family from the chat model |
++| `pstack-reflect-divergent` | `pstack_reflect_divergent` | reflect divergent | a different model family from `pstack_hardest` |
++| `pstack-reflect-tooling` | `pstack_reflect_tooling` | reflect tooling | your strongest instruction-following model |
++
++An unset alias falls back to the agent's second model entry, `@task` for `pstack-code` and `@default` for the rest, so an unconfigured install still runs.
++
+ ## Steps
+ 
+ ### 1. Detect available models
+ 
+-Run `omp models` to list the models configured on this machine. That is the dependable source. If you cannot detect any, ask the user to paste the slugs they have access to. Never write a real slug you have not confirmed is available. The aliases `inherit-parent` and `auto` are always valid even though they are not detected slugs.
++Run `omp models` to list the models configured on this machine and group them by provider family. Never write a selector you have not seen in that list.
+ 
+ ### 2. Load current state
+ 
+-The default role-to-model mapping is the rule shape shown in step 5 below. If `task.agentModelOverrides` in `~/.omp/agent/config.yml` already exists, read it and treat its `# budget` line and its role values as the current choices. Otherwise start from those defaults. A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.
++Read `modelRoles` in `~/.omp/agent/config.yml` and treat any existing `pstack_*` entries as the current choices. A `task.agentModelOverrides` entry for a `pstack-*` agent beats its alias, so list any you find and ask whether to remove them.
+ 
+ ### 3. Budget, map, and confirm
+ 
+-**(a) Ask for a budget.** Prefer `ask` over free text. Offer these four options with these exact labels, and name the current budget when the rule records one.
++**(a) Ask for a budget** with `ask`, naming the current one when the entries carry a suffix.
+ 
+-- `unlimited — keep max`
++- `unlimited — max reasoning`
+ - `large — xhigh reasoning`
+ - `medium — high reasoning`
+ - `small — medium reasoning`
+ 
+-**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by family, list, or alias (`inherit-parent`, `auto`). `unlimited` leaves every effort as in that table. `large`, `medium`, and `small` set the effort token of every real slug, panel entries included, to `xhigh`, `high`, or `medium`. The effort token is the last token, or the one before a trailing `fast`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. If the result is not a detected slug, use the same family's detected slug with the highest effort at or below the target, else mark the role as needing a choice. `inherit-parent` and `auto` do not change. So `small` turns your strongest judgment model into your strongest judgment model, and your fast code model into your fast code model.
++**(b) Propose a model per alias** from the detected models, following the capability column. Put the three panel seats on three different models, on different families where the machine offers them, and keep `pstack_reflect_divergent` off the family of `pstack_hardest`.
+ 
+-**(c) Show the roles and confirm.** Show every role with its model, marking any real slug not in the detected set as needing a choice. Also list each line step 2 dropped. Ask whether to accept as-is or change specific roles, offering the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model, which is how Auto users stay on Auto) as the options. Prefer `ask` over free text. For panel roles (arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena selects one value from it whose model family differs from the parent's when possible. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
++**(c) Show the table and confirm** with `ask`. Offer to accept or change specific aliases, using the detected models as options.
+ 
+ ### 4. Validate
+ 
+-Every real slug written must be in the detected set. `inherit-parent` and `auto` always pass. If a chosen real slug is not available, stop and ask again.
++Every selector written must be in the step 1 list. The budget becomes an effort suffix, `<selector>:<effort>`. When a model does not offer that effort, take its highest effort at or below the target and say so.
+ 
+-### 5. Write the rule
+-
+-Write `task.agentModelOverrides` and `modelRoles` in `~/.omp/agent/config.yml`, with a `# budget` comment carrying the chosen label and its target effort, and one entry per role agent, using the same labels poteto-mode uses. Overwrite the whole pstack part of both maps so re-runs stay idempotent. The block below is the role-to-capability table and not the file format, which `skill://omp-mechanics` holds. Shape:
++### 5. Write the roles
+ 
+-```
+----
+-description: pstack per-role model choices (overrides skill defaults)
+----
+-# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
+-# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (leave it out of `task.agentModelOverrides`). Alias entries in a panel list still count toward its fan-out.
+-# budget: unlimited (max)
+-feature, refactoring: your fast code model
+-bug-fix: your fast code model
+-perf-issue: your fast code model
+-hillclimb: your fast code model
+-judgment and prose: your strongest judgment model
+-hardest tasks: your strongest judgment model
+-how explorer: your fast code model
+-how explainer: your strongest judgment model
+-why investigators: your fast code model
+-why synthesizer: your strongest judgment model
+-reflect tooling: your strongest instruction-following model
+-reflect judgment, divergent, synthesizer: your strongest judgment model
+-arena runners: one model per distinct family omp models reports
+-arena cross-judge pool: one model per distinct family omp models reports
+-swarm workers: your fast code model
+-architect runners: one model per distinct family omp models reports
+-interrogate reviewers: one model per distinct family omp models reports
+-```
++Write the nine `pstack_*` entries into `modelRoles` in `~/.omp/agent/config.yml`, replacing any earlier `pstack_*` entries so reruns stay idempotent, and leave every other role alone. `skill://omp-mechanics` holds the file shape. To keep a fallback when a model's quota runs out, add a `retry.fallbackChains` entry keyed by the same alias name.
+ 
+ ### 6. Confirm
+ 
+-Tell the user which entries were written and that they apply to new sessions. Re-running this skill updates it.
++Tell the user which entries were written, that they apply to new sessions and new spawns, and that `/model`'s Roles view changes any of them later.
+ 
+ ### 7. Offer a verification skill (optional)
+ 
+-Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, invoke `/create-verification-skill` (resolves wherever pstack is installed: workspace, user, or plugin). On no, move on without pushing.
++Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, invoke `/create-verification-skill`. On no, move on without pushing.
+diff -r a/skills/swarm/SKILL.md b/skills/swarm/SKILL.md
+--- a/skills/swarm/SKILL.md	2026-09-26 17:41:37.111510557 +0100
++++ b/skills/swarm/SKILL.md	2026-09-26 17:41:37.199318798 +0100
+@@ -22,12 +22,12 @@
+ 1. State the done predicate and the artifact or report the swarm must return.
+ 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
+ 3. Set N from the user or derive it from the shape. N is total workers. `task.maxConcurrency` in `~/.omp/agent/config.yml` caps how many run at once.
+-4. Pick the worker model from the `swarm workers` line in `task.agentModelOverrides` in `~/.omp/agent/config.yml`. If the rule or that line is missing, use your fast code model. For `auto` or `inherit-parent`, omit `model` so the workers run on the parent model. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message. For a model race, give each arm its own agent file and its own `task.agentModelOverrides` entry.
++4. Workers run as `agent`: `pstack-code`, whose model is the operator's `modelRoles` binding. For a model race, give each arm its own agent file and its own `task.agentModelOverrides` entry.
+ 5. Give each worker its own writable output when it writes. When workers verify or measure commits, each brief names the exact SHAs. A measurement brief also names the method (sample count, what one sample is, order). The worker records both in its result.
+ 
+ ## Phase B: Fan out
+ 
+-Spawn all N workers in one message with `agent`: `task` (omp's general-purpose bundled agent), `isolated: true`, one `task` call with all items in `tasks[]` (batched in parallel), and the step 4 model, left unset for `auto` or `inherit-parent`. Use `environment: "local"` only when the worker needs access to something on the user's computer.
++Spawn all N workers in one `task` call with all items in `tasks[]` (batched in parallel), each with `agent`: `pstack-code` (or the race arm's own agent) and `isolated: true`. Use `environment: "local"` only when the worker needs access to something on the user's computer.
+ 
+ When a worker must start from a non-default base, create its `git worktree` on that base first and point the worker at that path.
+ 
+diff -r a/skills/why/SKILL.md b/skills/why/SKILL.md
+--- a/skills/why/SKILL.md	2026-09-26 17:41:37.119946875 +0100
++++ b/skills/why/SKILL.md	2026-09-26 17:41:37.205031302 +0100
+@@ -10,7 +10,7 @@
+ 
+ Companion to the `how` skill. `how` answers what the code does and how it works. `why` answers what forces led to its shape.
+ 
+-Each spawn below names a role line in the `pstack-models.mdc` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
++Each spawn below names the pstack role agent that carries its model. The operator binds each agent's model in `modelRoles`, so a spawn never passes a model.
+ 
+ ## Operating Posture
+ 
+@@ -80,8 +80,7 @@
+ Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
+ 
+ Subagent config (each):
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the `why investigators` line, default your fast code model
++- `agent`: `pstack-code` (the `why investigators` role; `skill://pstack-omp` maps roles to agents)
+ - Full tools per spawn. There is no `readonly` field and no Ask mode on omp's task wire, so nothing strips MCP access, which would otherwise disable MCP-backed investigators entirely. Investigators still shouldn't write anything.
+ 
+ Each investigator gets:
+@@ -124,8 +123,7 @@
+ 
+ Spawn one synthesizer subagent:
+ 
+-- `agent`: `task` (omp's general-purpose bundled agent)
+-- `model`: the `why synthesizer` line, default your strongest judgment model
++- `agent`: `pstack-judgment` (the `why synthesizer` role)
+ - Full tools per spawn. The synthesizer's quality check spot-verifies citations, which can require MCP access. There is no such mode on omp's task wire, so nothing strips MCPs.
+ 
+ The synthesizer gets:

@@ -27,13 +27,29 @@ Inspect the tools and schemas exposed in this session, not a version number or a
 | security reviewer | security-reviewer | good | Read-only security lane, separate from ordinary review. |
 | researcher | librarian | fast | Source-verified external research. |
 | synthesizer | reviewer | good | Adjudicate frozen evidence, not new implementation. |
-| implementer | default worker | good | Bounded implementation with explicit write ownership. |
-| owner | default worker | good | Retain context for one coupled workstream. |
+| implementer | pstack-code, or pstack-hardest for the hardest changes | good | Bounded implementation with explicit write ownership. |
+| owner | pstack-code, or pstack-hardest for the hardest changes | good | Retain context for one coupled workstream. |
 | mechanical | sonic | fast | Fully specified low-judgment edits. |
 
 The live roster is authoritative. Never invent missing specialists. When a preferred specialist is absent, use an available worker with the role explicitly in its brief; omit `agent` for the default worker. `poteto-agent` and `comment-sicko` are optional bundled custom agents. Use their exact names only when discovered. Otherwise include their skill/agent instructions as file pointers in an available worker's brief.
 
 Agent selection is not model selection. `modelRoles` and `task.agentModelOverrides` are operator configuration, not task payload fields. Vibe's `fast` and `good` are runtime tiers, not model names. Claim independence of models or providers only when returned resolved-model/fallback metadata proves it. Independent contexts remain useful when only one model is available; report that limitation.
+
+## pstack role agents
+
+Skills and playbooks that name a model role spawn the matching agent below. Each agent reads its model from one `modelRoles` alias the operator binds with `/setup-pstack` or `/model`'s Roles view, and falls back to `@task` or `@default` when the alias is unset. Pass the agent name; never pass a model.
+
+| Agent | Jobs |
+|---|---|
+| `pstack-code` | feature, refactoring, bug-fix, perf-issue, hillclimb, how explorer, why investigators, swarm workers |
+| `pstack-judgment` | judgment and prose, how explainer, why synthesizer |
+| `pstack-hardest` | hardest tasks (cross-cutting design, gnarly concurrency, subtle algorithms), reflect judgment, reflect synthesizer |
+| `pstack-panel-1`, `pstack-panel-2`, `pstack-panel-3` | one seat each for interrogate reviewers, arena runners, and architect runners |
+| `pstack-cross-judge` | arena cross-judge |
+| `pstack-reflect-divergent` | reflect divergent |
+| `pstack-reflect-tooling` | reflect tooling |
+
+When a `pstack-*` agent is missing from the live roster, fall back to the canonical role above with the job named in the brief, and report that the configured model was not used.
 
 ## Standalone brief
 
